@@ -23,10 +23,11 @@ describe("contador", () => {
       program.programId
     );
 
-    const instruction1 = await program.methods.initialize(10, "Juan", 20).accounts({
+    const instruction1 = await program.methods.initialize(10, "Juan", 20).accountsStrict({
       counter: pda,
       persona: pdaPersona,
       payer: program.provider.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId
     }).signers([provider.wallet.payer]).instruction();
 
     // Incrementa el contador
