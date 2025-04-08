@@ -6,44 +6,44 @@ import { assert } from "chai";
 describe("contador", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
-
+  console.log("provider", anchor.AnchorProvider.env())
   const program = anchor.workspace.MiContrato as Program<MiContrato>;
 
-  it("Inicializa el contador", async () => {
-    // Genera una clave para la cuenta de datos del contador.
-    const contadorData = anchor.web3.Keypair.generate();
-    const personaData = anchor.web3.Keypair.generate();
+  it("incrementa el contador", async () => {
     const provider = anchor.AnchorProvider.env();
+    
 
-    const initialBalance = await provider.connection.getBalance(provider.wallet.publicKey);
-    console.log(`Initial balance of counter account: ${initialBalance} lamports`);
-
-    // Llama a la función de inicialización del contrato.
-    await program.methods.initialize(10, "Juan", 20).accounts({   
-      counter: contadorData.publicKey,  
-      persona: personaData.publicKey,
-      payer: program.provider.publicKey,
-      systemProgram: anchor.web3.SystemProgram.programId,
-    }).signers([contadorData, personaData, provider.wallet.payer]).rpc();
-
-    // // Obtiene los datos de la cuenta del contador.
-    const contadorAccount = await program.account.counter.fetch(contadorData.publicKey);
-    const personaAccount = await program.account.persona.fetch(personaData.publicKey);
-    const allAccounts = await program.account.counter.all();
-    console.log(allAccounts);
-    console.log("+++++++++++")
-    const cuentaInfo = await provider.connection.getAccountInfo(contadorData.publicKey);
-    console.log(cuentaInfo);
-    const cuentaRent = await provider.connection.getMinimumBalanceForRentExemption(
-      cuentaInfo.space
+    const [pda, bump] =  anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("counter")], // Semillas
+      program.programId
     );
-    console.log("cuentaRent", cuentaRent / 10**9 / 100 , "$");
-    const cuentaInfo2 = await provider.connection.getAccountInfo(personaData.publicKey);
-    console.log(cuentaInfo2);
-    assert.ok(contadorAccount.counter == 10);   
-        assert.ok(personaAccount.name == "Juan");
-        assert.ok(personaAccount.age == 20);
-  });
+
+    const [pdaPersona, bumpPersona] =  anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("persona")], // Semillas
+      program.programId
+    );
+
+    const instruction1 = await program.methods.initialize(10, "Juan", 20).accounts({
+      counter: pda,
+      persona: pdaPersona,
+      payer: program.provider.publicKey,
+    }).signers([provider.wallet.payer]).instruction();
+
+    // Incrementa el contador
+    const instruction2 = await program.methods.increment().accounts({
+      counter: pda,
+    }).signers([provider.wallet.payer]).instruction();
+
+    const transaction = new anchor.web3.Transaction();
+    transaction.add(instruction1, instruction2);
+    const txHash = await provider.sendAndConfirm(transaction);
+    console.log("txHash", txHash);
+    
+    // Verifica que el contador se haya incrementado
+    const contadorAccount = await program.account.counter.fetch(pda);
+    assert.ok(contadorAccount.counter === 11, "El contador debería haberse incrementado a 11");
+  })
+
 
 ;
 });

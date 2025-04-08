@@ -18,6 +18,7 @@ pub mod mi_contrato {
 
     pub fn increment(ctx: Context<Increment>) -> Result<()> {
         let counter = &mut ctx.accounts.counter;
+        // Verificar que solo el creador de la cuenta pueda incrementar el contador
         counter.counter += 1;
         Ok(())
     }
@@ -29,11 +30,17 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = payer,
-        space = Counter::INIT_SPACE
-
+        space = Counter::INIT_SPACE,
+        
+        seeds = [b"counter"],
+        bump,
     )]
     pub counter: Account<'info, Counter>,
-    #[account(init, payer = payer, space = Persona::INIT_SPACE)]
+    #[account(init, 
+        payer = payer, 
+        space = Persona::INIT_SPACE, 
+        seeds = [b"persona"], 
+        bump)]
     pub persona: Account<'info, Persona>,   
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -42,6 +49,7 @@ pub struct Initialize<'info> {
 
 #[account]
 pub struct Persona {
+
     pub name: String,
     pub age: u32,
 }
@@ -56,6 +64,7 @@ impl Persona {
 // This is why we add 8 bytes in the INIT_SPACE constant below (8 for discriminator + 4 for u32).
 pub struct Counter {
     pub counter: u32,
+    
 }
 impl Counter {
     pub const INIT_SPACE: usize = 8 + 4;
@@ -68,6 +77,7 @@ pub struct Increment<'info> {
         mut
     )]
     pub counter: Account<'info, Counter>,
+  
 }
 
 #[error_code]
